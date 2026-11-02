@@ -46,9 +46,10 @@
             </div>
           </div>
           <ol class="checklist">
-            <li><span>01</span><p>Turn the USB-C plug until the computer sees <code>Espressif USB JTAG/serial</code>.</p></li>
-            <li><span>02</span><p>Keep the knob powered and close other serial monitor tabs.</p></li>
-            <li><span>03</span><p>After flashing, use a phone to join <code>VFOKnob</code>, set Wi-Fi, then choose your radio.</p></li>
+            <li><span>01</span><p>Use the plug orientation that exposes the ESP32-S3 USB serial port. If Windows shows <code>USB-SERIAL CH340 (COM*)</code>, flip the plug: that orientation reaches the companion chip, not the S3.</p></li>
+            <li><span>02</span><p>If VFO-Knob is already running over USB, its S3 serial port is available for about 6 seconds at boot before USB networking takes over. Hold a finger on the display through startup to keep the serial port available; otherwise Windows may show a network adapter instead of a COM port.</p></li>
+            <li><span>03</span><p>Keep the knob powered and close other serial monitor tabs.</p></li>
+            <li><span>04</span><p>After flashing, use a phone to join <code>VFOKnob</code>, set Wi-Fi, then choose your radio.</p></li>
           </ol>
           <div class="support-note">
             <span class="support-icon" aria-hidden="true">↗</span>

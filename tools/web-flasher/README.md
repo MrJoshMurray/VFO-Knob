@@ -29,15 +29,22 @@ organization Pages site hosted from another repository.
 ## Install on the knob
 
 1. Connect the knob with a USB data cable and use the plug orientation that
-   reaches the ESP32-S3 USB JTAG/serial port (VID:PID `303A:1001`).
-2. Check the erase acknowledgement, choose **Connect and flash**, and select
+   reaches the ESP32-S3 USB JTAG/serial port (VID:PID `303A:1001`). If Windows
+   shows `USB-SERIAL CH340 (COM*)`, flip the plug: that orientation reaches the
+   companion chip, not the S3.
+2. If the knob is already running VFO-Knob over USB, its S3 serial port is
+   available for about six seconds at boot before USB networking takes over.
+   Hold a finger on the display through startup to keep the serial port
+   available; otherwise Windows may show a network adapter instead of a COM
+   port.
+3. Check the erase acknowledgement, choose **Connect and flash**, and select
    the Espressif USB JTAG/serial port in Chrome's picker.
-3. Confirm the final erase prompt. The page downloads the setup release and
+4. Confirm the final erase prompt. The page downloads the setup release and
    its provisioning bundle from the public `firmware` branch, checks file
    sizes and SHA-256 digests, verifies the detected chip is an ESP32-S3, then
    erases and writes the bootloader, partition table, SD-card setup marker,
    and setup app at the offsets from the release manifest.
-4. After the knob restarts, join its `VFOKnob` Wi-Fi network from a phone,
+5. After the knob restarts, join its `VFOKnob` Wi-Fi network from a phone,
    configure Wi-Fi, and choose the desired radio firmware on the knob.
 
 The flash is destructive to the S3's entire flash, including saved settings.
