@@ -33,7 +33,7 @@
 
       <section class="warning" aria-label="Flash warning">
         <span class="warning-icon" aria-hidden="true">!</span>
-        <p><strong>This erases the S3's entire flash.</strong> Current firmware, settings, and files on the S3 will be erased. The second chip is not changed.</p>
+        <p><strong>Flash writes replace data on the S3.</strong> The selected image mode determines whether that means one app slot or the entire flash. The second chip is not changed.</p>
       </section>
 
       <section class="workspace" aria-label="Browser flasher">
@@ -55,6 +55,9 @@
             <span class="support-icon" aria-hidden="true">↗</span>
             <p>Desktop Chrome or Edge on macOS, Windows, or Linux. The page must be served from HTTPS or localhost.</p>
           </div>
+          <aside class="thetis-note" aria-label="Thetis USB TCI settings">
+            <p><strong>Using Thetis over USB?</strong> In Thetis Setup &gt; Serial/Network/Midi &gt; TCI, set <b>TCI Server Bind IP:Port</b> to <code>10.55.42.2:50001</code> and enable <b>TCI Server Running</b>.</p>
+          </aside>
         </div>
 
         <div class="flash-panel">
@@ -89,8 +92,42 @@
         </div>
       </section>
 
+      <section class="custom-section" aria-labelledby="custom-title">
+        <div class="section-heading">
+          <span class="step-number">03</span>
+          <div>
+            <h2 id="custom-title">Test a custom BIN</h2>
+            <p>Flash a locally built ESP32-S3 image. Custom files are not checked against a published release.</p>
+          </div>
+        </div>
+        <div class="custom-layout">
+          <div class="custom-fields">
+            <label class="field-label" for="custom-image-kind">Image type</label>
+            <select id="custom-image-kind">
+              <option value="app">Application BIN · OTA slot at 0x20000 · keep bootloader</option>
+              <option value="full">Merged full-flash BIN · offset 0x0 · erase all</option>
+            </select>
+            <label class="field-label" for="custom-bin-file">Your BIN file</label>
+            <input id="custom-bin-file" type="file" accept=".bin,application/octet-stream" />
+            <p id="custom-bin-name" class="custom-bin-name">No BIN selected.</p>
+            <p id="custom-image-hint" class="custom-image-hint">Application images must fit the 3 MiB OTA partition. This writes slot 0 only; the bootloader, partition table, and other slot are untouched.</p>
+            <p class="custom-local-note">The file is read locally by your browser and is not uploaded. Custom BINs are not authenticated or release-verified.</p>
+          </div>
+          <div class="custom-action">
+            <label class="consent">
+              <input id="custom-erase-consent" type="checkbox" />
+              <span id="custom-consent-copy">I understand this writes application slot 0 at 0x20000.</span>
+            </label>
+            <button id="custom-flash-button" class="flash-button" type="button" disabled>
+              <span class="button-icon" aria-hidden="true">↯</span>
+              <span>Connect and flash custom BIN</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
       <footer class="footer">
-        <span>IMAGES FROM GURU-RF/VFO-KNOB · SHA-256 CHECKED</span>
+        <span>OFFICIAL RELEASES SHA-256 VERIFIED · CUSTOM BINS UNVERIFIED</span>
         <a href="https://github.com/Guru-RF/VFO-Knob/blob/main/docs/setup.md">Setup guide <span aria-hidden="true">↗</span></a>
       </footer>
       <p class="disclaimer">VFO-Knob and this browser flasher are independent hobby-project software; the flasher is in beta and may change. It is provided “as is,” without warranties of any kind. Flashing is destructive: verify the board and release, and proceed at your own risk. Not affiliated with Waveshare or Espressif.</p>

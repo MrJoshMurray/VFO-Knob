@@ -53,10 +53,29 @@ microSD preloading are not part of this browser workflow. Use
 `tools/install-setup.sh` for the full provisioning workflow; that script
 currently requires Linux and ESP-IDF 5.5.x.
 
-The flasher is intentionally limited to the published setup bundle and its
-known addresses; it does not accept arbitrary binaries or guess flash offsets.
-The release manifest is fetched live, so the page follows future setup
-releases without a code change.
+## Custom BIN testing
+
+The **Test a custom BIN** section accepts a local `.bin` file. It is read by
+the browser and is not uploaded to a server. Custom images are not checked
+against a release manifest or authenticated by the page.
+
+- **Application BIN** writes to the first OTA app slot at `0x20000` without a
+   full-chip erase. It leaves the bootloader, partition table and other OTA slot
+   untouched. It may not boot if the active OTA slot or signing key does not
+   match.
+- **Merged full-flash BIN** writes at `0x0` after erasing all 16 MiB. Use an
+   ESP-IDF merged image containing the ESP32-S3 bootloader, partition table and
+   application at their standard offsets. This replaces settings and the
+   bootloader's signing trust; use only for development or recovery images for
+   this exact board.
+
+For USB-tethered Thetis, set **TCI Server Bind IP:Port** in Thetis Setup to
+`10.55.42.2:50001` and enable **TCI Server Running**. The first Thetis knob
+image is receive-only until disconnect-triggered unkey behavior is proven.
+
+The official setup flow remains limited to the published bundle and known
+offsets. Its manifests are fetched live, so it follows future setup releases
+without a code change.
 
 ## Checks
 

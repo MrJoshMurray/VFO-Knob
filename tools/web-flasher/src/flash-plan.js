@@ -5,6 +5,11 @@ const REQUIRED_BENCH_FILES = [
   ["partition-table.bin", 0x8000],
   ["sdwipe.bin", 0x9000],
 ];
+const APP_OFFSET = 0x20000;
+const APP_PARTITION_SIZE = 0x300000;
+const PARTITION_TABLE_OFFSET = 0x8000;
+const FLASH_SIZE = 0x1000000;
+const ESP_IMAGE_MAGIC = 0xe9;
 
 function requireCondition(condition, message) {
   if (!condition) throw new Error(message);
@@ -50,6 +55,40 @@ export function createFlashPlan(setupManifest, benchManifest) {
   });
 
   return { version: setupManifest.version, files };
+}
+
+export function createCustomFlashPlan(name, data, kind) {
+  requireCondition(typeof name === "string" && /\.bin$/i.test(name), "Choose a .bin file.");
+  requireCondition(data instanceof Uint8Array && data.length > 0, "The selected BIN is empty or unreadable.");
+
+  if (kind === "app") {
+    requireCondition(data[0] === ESP_IMAGE_MAGIC, "This does not look like an ESP32-S3 application image.");
+    requireCondition(data.length <= APP_PARTITION_SIZE, "The application image is larger than the 3 MiB OTA partition.");
+    return {
+      version: name,
+      eraseAll: false,
+      files: [{ name, address: APP_OFFSET, size: data.length, data }],
+    };
+  }
+
+  if (kind === "full") {
+    requireCondition(data.length <= FLASH_SIZE, "The merged image exceeds the board's 16 MiB flash.");
+    requireCondition(
+      data.length > APP_OFFSET &&
+      data[0] === ESP_IMAGE_MAGIC &&
+      data[PARTITION_TABLE_OFFSET] === 0xaa &&
+      data[PARTITION_TABLE_OFFSET + 1] === 0x50 &&
+      data[APP_OFFSET] === ESP_IMAGE_MAGIC,
+      "A full image must contain the ESP32-S3 bootloader, partition table, and application at the expected offsets.",
+    );
+    return {
+      version: name,
+      eraseAll: true,
+      files: [{ name, address: 0, size: data.length, data }],
+    };
+  }
+
+  throw new Error("Choose an application BIN or a merged full-flash BIN.");
 }
 
 async function fetchJson(url, fetchImpl) {

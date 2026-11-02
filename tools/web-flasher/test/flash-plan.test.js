@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createFlashPlan } from "../src/flash-plan.js";
+import { createCustomFlashPlan, createFlashPlan } from "../src/flash-plan.js";
 
 function manifests() {
   return [
@@ -49,4 +49,31 @@ test("rejects unsafe firmware names and malformed hashes", () => {
   const [setup, bench] = manifests();
   assert.throws(() => createFlashPlan({ ...setup, file: "../firmware.bin" }, bench), /invalid image filename/);
   assert.throws(() => createFlashPlan({ ...setup, sha256: "bad" }, bench), /invalid SHA-256/);
+});
+
+test("plans an application BIN for the first OTA slot without a full erase", () => {
+  const image = new Uint8Array([0xe9, 0x00, 0x00]);
+  const plan = createCustomFlashPlan("vfo-knob-thetis.bin", image, "app");
+  assert.equal(plan.eraseAll, false);
+  assert.deepEqual(plan.files.map(({ name, address, size }) => [name, address, size]), [
+    ["vfo-knob-thetis.bin", 0x20000, 3],
+  ]);
+});
+
+test("plans an ESP-IDF merged BIN from offset zero with a full erase", () => {
+  const image = new Uint8Array(0x20001);
+  image[0] = 0xe9;
+  image[0x8000] = 0xaa;
+  image[0x8001] = 0x50;
+  image[0x20000] = 0xe9;
+  const plan = createCustomFlashPlan("vfo-knob-thetis-merged.bin", image, "full");
+  assert.equal(plan.eraseAll, true);
+  assert.deepEqual(plan.files.map(({ address, size }) => [address, size]), [[0, image.length]]);
+});
+
+test("rejects malformed or oversized custom images before flashing", () => {
+  assert.throws(() => createCustomFlashPlan("firmware.bin", new Uint8Array([0]), "app"), /application image/);
+  assert.throws(() => createCustomFlashPlan("firmware.bin", new Uint8Array([0xe9]), "full"), /full image must contain/);
+  assert.throws(() => createCustomFlashPlan("firmware.hex", new Uint8Array([0xe9]), "app"), /Choose a .bin/);
+  assert.throws(() => createCustomFlashPlan("firmware.bin", new Uint8Array([0xe9]), "other"), /Choose an application/);
 });
