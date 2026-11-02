@@ -44,6 +44,7 @@ function updateButton() {
 function updateCustomImageDetails() {
   const fullImage = customImageKind.value === "full";
   const file = customBinFile.files?.[0];
+  customConsent.checked = false;
   customBinName.textContent = file ? `${file.name} · ${file.size.toLocaleString()} bytes` : "No BIN selected.";
   customImageHint.textContent = fullImage
     ? "Choose an ESP-IDF merged image containing bootloader, partition table, and app at their standard offsets. This erases all 16 MiB and replaces the complete flash layout."
