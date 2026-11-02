@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2f0e9" />
+    <title>VFO Knob | Browser Flasher</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <a class="wordmark" href="#top" aria-label="VFO Knob flasher home">
+          <span class="mark" aria-hidden="true">V</span>
+          <span>VFO <b>KNOB</b></span>
+        </a>
+        <span class="topbar-note">ESP32-S3 · WEB INSTALLER</span>
+      </header>
+
+      <section class="intro" id="top" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> FIELD SETUP / 01</p>
+          <h1 id="page-title">Flash the<br /><em>setup firmware.</em></h1>
+          <p class="lede">Install VFO-Knob on a Waveshare ESP32-S3 Knob Touch LCD 1.8 using your browser. No command line or ESP-IDF required.</p>
+        </div>
+        <figure class="board-shot">
+          <img src="https://www.waveshare.com/img/devkit/ESP32-S3-Knob-Touch-LCD-1.8/ESP32-S3-Knob-Touch-LCD-1.8-details-intro1.jpg?v=26061101" alt="Waveshare ESP32-S3 Knob Touch LCD 1.8 board and component layout" />
+          <figcaption>WAVESHARE · ESP32-S3-KNOB-TOUCH-LCD-1.8</figcaption>
+        </figure>
+      </section>
+
+      <section class="warning" aria-label="Flash warning">
+        <span class="warning-icon" aria-hidden="true">!</span>
+        <p><strong>This erases the S3's entire flash.</strong> Current firmware, settings, and files on the S3 will be erased. The second chip is not changed.</p>
+      </section>
+
+      <section class="workspace" aria-label="Browser flasher">
+        <div class="steps-panel">
+          <div class="section-heading">
+            <span class="step-number">01</span>
+            <div>
+              <h2>Before connecting</h2>
+              <p>Use a data-capable USB-C cable. Connect to the S3 port orientation.</p>
+            </div>
+          </div>
+          <ol class="checklist">
+            <li><span>01</span><p>Turn the USB-C plug until the computer sees <code>Espressif USB JTAG/serial</code>.</p></li>
+            <li><span>02</span><p>Keep the knob powered and close other serial monitor tabs.</p></li>
+            <li><span>03</span><p>After flashing, use a phone to join <code>VFOKnob</code>, set Wi-Fi, then choose your radio.</p></li>
+          </ol>
+          <div class="support-note">
+            <span class="support-icon" aria-hidden="true">↗</span>
+            <p>Desktop Chrome or Edge on macOS, Windows, or Linux. The page must be served from HTTPS or localhost.</p>
+          </div>
+        </div>
+
+        <div class="flash-panel">
+          <div class="section-heading">
+            <span class="step-number">02</span>
+            <div>
+              <h2>Install setup</h2>
+              <p>Latest published setup release, verified before writing.</p>
+            </div>
+          </div>
+          <div class="release-line">
+            <span class="release-label">RELEASE</span>
+            <span id="release-version" class="release-value">Loaded when connected</span>
+          </div>
+          <label class="consent">
+            <input id="erase-consent" type="checkbox" />
+            <span>I understand the S3 flash will be erased.</span>
+          </label>
+          <button id="flash-button" class="flash-button" type="button" disabled>
+            <span class="button-icon" aria-hidden="true">↯</span>
+            <span>Connect and flash</span>
+          </button>
+          <p id="status" class="status" role="status" aria-live="polite">Waiting for confirmation.</p>
+          <div class="progress-wrap" aria-label="Flash progress">
+            <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+            <span id="progress-label" class="progress-label">0%</span>
+          </div>
+          <details class="log-details">
+            <summary>Flasher log</summary>
+            <pre id="log" aria-live="polite">Ready.</pre>
+          </details>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>IMAGES FROM GURU-RF/VFO-KNOB · SHA-256 CHECKED</span>
+        <a href="https://github.com/Guru-RF/VFO-Knob/blob/main/docs/setup.md">Setup guide <span aria-hidden="true">↗</span></a>
+      </footer>
+      <p class="disclaimer">VFO-Knob and this browser flasher are independent hobby-project software; the flasher is in beta and may change. It is provided “as is,” without warranties of any kind. Flashing is destructive: verify the board and release, and proceed at your own risk. Not affiliated with Waveshare or Espressif.</p>
+    </main>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

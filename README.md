@@ -1040,6 +1040,12 @@ way to watch a boot.
 
 ### A new knob
 
+For a one-time setup on desktop Chrome, use the [browser flasher](tools/web-flasher/README.md).
+It fetches the published setup firmware and provisioning files, checks their hashes,
+and writes the ESP32-S3 without installing ESP-IDF. The setup firmware then uses
+Wi-Fi to offer the radio firmware. The browser flow does not reflash the Bluetooth
+companion chip; use the script below when that is required.
+
 `tools/install-setup.sh` puts the setup firmware — what every knob ships with —
 on a knob over its USB-C cable: a new board with Waveshare's demo on it, or any
 knob to be made new again. It erases the whole flash and writes the latest
