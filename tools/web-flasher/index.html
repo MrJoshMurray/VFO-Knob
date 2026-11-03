@@ -122,6 +122,15 @@
               <span class="button-icon" aria-hidden="true">↯</span>
               <span>Connect and flash custom BIN</span>
             </button>
+            <p id="custom-status" class="status" role="status" aria-live="polite">Choose a BIN and acknowledge the write to enable flashing.</p>
+            <div class="progress-wrap" aria-label="Custom BIN flash progress">
+              <div class="progress-track"><div id="custom-progress-fill" class="progress-fill"></div></div>
+              <span id="custom-progress-label" class="progress-label">0%</span>
+            </div>
+            <details class="log-details">
+              <summary>Custom BIN flash log</summary>
+              <pre id="custom-log" aria-live="polite">Ready.</pre>
+            </details>
           </div>
         </div>
       </section>

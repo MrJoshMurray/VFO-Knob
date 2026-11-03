@@ -13,6 +13,10 @@ const customImageKind = document.querySelector("#custom-image-kind");
 const customBinFile = document.querySelector("#custom-bin-file");
 const customBinName = document.querySelector("#custom-bin-name");
 const customImageHint = document.querySelector("#custom-image-hint");
+const customStatus = document.querySelector("#custom-status");
+const customProgressFill = document.querySelector("#custom-progress-fill");
+const customProgressLabel = document.querySelector("#custom-progress-label");
+const customLog = document.querySelector("#custom-log");
 const companionButton = document.querySelector("#companion-flash-button");
 const companionConsent = document.querySelector("#companion-consent");
 const companionRelease = document.querySelector("#companion-release");
@@ -75,18 +79,21 @@ if (!("serial" in navigator)) {
   appendLog("This browser does not expose navigator.serial.");
 }
 
-async function flashPlan(plan, confirmation, successMessage) {
+async function flashPlan(plan, confirmation, successMessage, ui = {}) {
   let port;
   let transport;
   let loader;
   let chipDetected = false;
   let resetDone = false;
+  const reportStatus = (message, kind = "") => setStatus(message, kind, ui.status ?? status);
+  const reportLog = (message) => appendLog(message, ui.log ?? log);
+  const reportProgress = (percent) => setProgress(percent, ui.progressFill ?? progressFill, ui.progressLabel ?? progressLabel);
 
   try {
     if (!window.isSecureContext) throw new Error("Open this page over HTTPS or localhost to use USB serial.");
 
-    setStatus("Choose the knob's ESP32-S3 USB port.");
-    appendLog("Requesting access to Espressif USB JTAG/serial (303A:1001)…");
+    reportStatus("Choose the knob's ESP32-S3 USB port.");
+    reportLog("Requesting access to Espressif USB JTAG/serial (303A:1001)…");
     port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x303a, usbProductId: 0x1001 }] });
 
     transport = new SafeTransport(port);
@@ -94,28 +101,28 @@ async function flashPlan(plan, confirmation, successMessage) {
       transport,
       baudrate: 460800,
       debugLogging: false,
-      terminal: { clean() {}, writeLine: appendLog, write: (line) => appendLog(line) },
+      terminal: { clean() {}, writeLine: reportLog, write: reportLog },
     });
 
-    setStatus("Connecting to the knob and checking its chip.");
+    reportStatus("Connecting to the knob and checking its chip.");
     const chipName = await loader.main();
     chipDetected = true;
-    appendLog(`Detected ${chipName}.`);
+    reportLog(`Detected ${chipName}.`);
     if (!chipName.includes("ESP32-S3")) throw new Error(`Expected ESP32-S3, found ${chipName}. Check the USB-C plug orientation.`);
 
     const accepted = window.confirm(confirmation);
     if (!accepted) {
-      setStatus("Flash cancelled. No write was started.");
-      appendLog("Cancelled before writing.");
+      reportStatus("Flash cancelled. No write was started.");
+      reportLog("Cancelled before writing.");
       return;
     }
 
     const totalBytes = plan.files.reduce((sum, file) => sum + file.data.length, 0);
     const priorBytes = (fileIndex) => plan.files.slice(0, fileIndex).reduce((sum, file) => sum + file.data.length, 0);
-    setStatus(plan.eraseAll
+    reportStatus(plan.eraseAll
       ? "Erasing and flashing the full S3 image. Keep the cable connected."
       : "Writing the application image. Keep the cable connected.");
-    appendLog(plan.eraseAll ? "Beginning full S3 flash erase and write…" : "Beginning app-slot write…");
+    reportLog(plan.eraseAll ? "Beginning full S3 flash erase and write…" : "Beginning app-slot write…");
 
     await loader.writeFlash({
       fileArray: plan.files.map(({ data, address }) => ({ data, address })),
@@ -126,19 +133,19 @@ async function flashPlan(plan, confirmation, successMessage) {
       compress: true,
       reportProgress: (fileIndex, written, fileTotal) => {
         const currentBytes = fileTotal > 0 ? (written / fileTotal) * plan.files[fileIndex].data.length : 0;
-        setProgress(((priorBytes(fileIndex) + currentBytes) / totalBytes) * 100);
+        reportProgress(((priorBytes(fileIndex) + currentBytes) / totalBytes) * 100);
       },
     });
 
-    appendLog("Flash write completed.");
+    reportLog("Flash write completed.");
     await loader.after("hard_reset");
     resetDone = true;
-    setProgress(100);
-    setStatus(successMessage, "success");
+    reportProgress(100);
+    reportStatus(successMessage, "success");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    setStatus(message, "error");
-    appendLog(`ERROR: ${message}`);
+    reportStatus(message, "error");
+    reportLog(`ERROR: ${message}`);
   } finally {
     if (loader && chipDetected && !resetDone) {
       try {
@@ -163,7 +170,10 @@ button.addEventListener("click", async () => {
   if (busy) return;
   busy = true;
   updateButton();
-  setProgress(0);
+  setProgress(0, customProgressFill, customProgressLabel);
+  customStatus.dataset.kind = "";
+  customStatus.textContent = "Reading your custom BIN locally.";
+  customLog.textContent = "Ready.";
   releaseVersion.textContent = "Checking release…";
 
   try {
@@ -192,16 +202,17 @@ customButton.addEventListener("click", async () => {
   if (busy) return;
   busy = true;
   updateButton();
-  setProgress(0);
+  setProgress(0, customProgressFill, customProgressLabel);
+  customStatus.textContent = "Reading your custom BIN locally.";
+  customStatus.dataset.kind = "";
+  customLog.textContent = "Ready.";
 
   try {
     const file = customBinFile.files?.[0];
     if (!file) throw new Error("Choose a custom .bin file first.");
-    setStatus("Reading your custom BIN locally.");
     const data = new Uint8Array(await file.arrayBuffer());
     const plan = createCustomFlashPlan(file.name, data, customImageKind.value);
-    releaseVersion.textContent = `Custom · ${file.name}`;
-    appendLog(`Loaded ${file.name} · ${data.length.toLocaleString()} bytes · not release-verified`);
+    appendLog(`Loaded ${file.name} · ${data.length.toLocaleString()} bytes · not release-verified`, customLog);
 
     const confirmation = plan.eraseAll
       ? `Flash full image ${file.name}?\n\nThis erases all ESP32-S3 flash, including firmware, settings, and files, and replaces the bootloader and partition table. Only continue with a merged image for this exact board. The companion chip is not changed.`
@@ -209,11 +220,16 @@ customButton.addEventListener("click", async () => {
     const successMessage = plan.eraseAll
       ? "Custom full image installed. The knob has restarted."
       : "Custom application image written. The knob has restarted if this slot is selected and trusted.";
-    await flashPlan(plan, confirmation, successMessage);
+    await flashPlan(plan, confirmation, successMessage, {
+      status: customStatus,
+      log: customLog,
+      progressFill: customProgressFill,
+      progressLabel: customProgressLabel,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    setStatus(message, "error");
-    appendLog(`ERROR: ${message}`);
+    setStatus(message, "error", customStatus);
+    appendLog(`ERROR: ${message}`, customLog);
   } finally {
     busy = false;
     updateButton();
