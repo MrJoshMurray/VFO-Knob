@@ -33,7 +33,7 @@
 
       <section class="warning" aria-label="Flash warning">
         <span class="warning-icon" aria-hidden="true">!</span>
-        <p><strong>Flash writes replace data on the S3.</strong> The selected image mode determines whether that means one app slot or the entire flash. The second chip is not changed.</p>
+        <p><strong>Setup and custom images write the S3.</strong> Their image mode determines whether that means one app slot or the entire flash; they leave the second chip untouched. The Bluetooth installer below writes the second chip only.</p>
       </section>
 
       <section class="workspace" aria-label="Browser flasher">
@@ -126,8 +126,47 @@
         </div>
       </section>
 
+      <section class="custom-section companion-section" aria-labelledby="companion-title">
+        <div class="section-heading">
+          <span class="step-number">04</span>
+          <div>
+            <h2 id="companion-title">Install Bluetooth firmware</h2>
+            <p>Install the official companion firmware directly to the second ESP32, verified before writing.</p>
+          </div>
+        </div>
+        <div class="custom-layout">
+          <div class="custom-fields">
+            <p class="companion-note"><strong>Flip the USB-C plug</strong> so the cable reaches the second chip's CH340 serial port. This writes its bootloader, partition table, OTA data, and Bluetooth firmware; the S3 is untouched and existing NVS settings are preserved.</p>
+            <p class="custom-image-hint">Use desktop Chrome or Edge. The page checks for the knob's ESP32-U4WDH at revision 3 or later before writing. Windows may need the CH340 driver.</p>
+          </div>
+          <div class="custom-action">
+            <div class="release-line">
+              <span class="release-label">OFFICIAL COMPANION</span>
+              <span id="companion-release" class="release-value">Loaded when connected</span>
+            </div>
+            <label class="consent">
+              <input id="companion-consent" type="checkbox" />
+              <span>I understand this provisions the second ESP32.</span>
+            </label>
+            <button id="companion-flash-button" class="flash-button" type="button" disabled>
+              <span class="button-icon" aria-hidden="true">↯</span>
+              <span>Connect and install Bluetooth</span>
+            </button>
+            <p id="companion-status" class="status" role="status" aria-live="polite">Check the box above to enable the installer.</p>
+            <div class="progress-wrap" aria-label="Bluetooth install progress">
+              <div class="progress-track"><div id="companion-progress-fill" class="progress-fill"></div></div>
+              <span id="companion-progress-label" class="progress-label">0%</span>
+            </div>
+            <details class="log-details">
+              <summary>Bluetooth installer log</summary>
+              <pre id="companion-log" aria-live="polite">Ready.</pre>
+            </details>
+          </div>
+        </div>
+      </section>
+
       <footer class="footer">
-        <span>OFFICIAL RELEASES SHA-256 VERIFIED · CUSTOM BINS UNVERIFIED</span>
+        <span>OFFICIAL SETUP &amp; BLUETOOTH RELEASES SHA-256 VERIFIED · CUSTOM BINS UNVERIFIED</span>
         <a href="https://github.com/Guru-RF/VFO-Knob/blob/main/docs/setup.md">Setup guide <span aria-hidden="true">↗</span></a>
       </footer>
       <p class="disclaimer">VFO-Knob and this browser flasher are independent hobby-project software; the flasher is in beta and may change. It is provided “as is,” without warranties of any kind. Flashing is destructive: verify the board and release, and proceed at your own risk. Not affiliated with Waveshare or Espressif.</p>

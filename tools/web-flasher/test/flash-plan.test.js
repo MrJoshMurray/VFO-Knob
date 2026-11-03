@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createCustomFlashPlan, createFlashPlan } from "../src/flash-plan.js";
+import { createCompanionFlashPlan, inspectCompanionChip } from "../src/companion-plan.js";
+import { SafeTransport } from "../src/safe-transport.js";
 
 function manifests() {
   return [
@@ -21,6 +23,28 @@ function manifests() {
         "bootloader.bin": { offset: "0x0", sha256: "b".repeat(64), size: 1024 },
         "partition-table.bin": { offset: "0x8000", sha256: "c".repeat(64), size: 512 },
         "sdwipe.bin": { offset: "0x9000", sha256: "d".repeat(64), size: 256 },
+      },
+    },
+  ];
+}
+
+function companionManifests() {
+  return [
+    {
+      project: "vfo-knob-companion",
+      version: "1.21.1",
+      file: "vfo-knob-companion-1.21.1.bin",
+      sha256: "a".repeat(64),
+      size: 8192,
+    },
+    {
+      project: "vfo-knob-companion",
+      release: "1.21.1",
+      bootloader_version: 2,
+      files: {
+        "bootloader.bin": { offset: "0x1000", sha256: "b".repeat(64), size: 1024 },
+        "partition-table.bin": { offset: "0x8000", sha256: "c".repeat(64), size: 512 },
+        "ota_data_initial.bin": { offset: "0xe000", sha256: "d".repeat(64), size: 0x2000 },
       },
     },
   ];
@@ -49,6 +73,78 @@ test("rejects unsafe firmware names and malformed hashes", () => {
   const [setup, bench] = manifests();
   assert.throws(() => createFlashPlan({ ...setup, file: "../firmware.bin" }, bench), /invalid image filename/);
   assert.throws(() => createFlashPlan({ ...setup, sha256: "bad" }, bench), /invalid SHA-256/);
+});
+
+test("creates a second-chip provisioning plan without erasing NVS", () => {
+  const plan = createCompanionFlashPlan(...companionManifests());
+  assert.equal(plan.version, "1.21.1");
+  assert.equal(plan.eraseAll, false);
+  assert.equal(plan.flashFreq, "40m");
+  assert.deepEqual(plan.files.map(({ name, address }) => [name, address]), [
+    ["bootloader.bin", 0x1000],
+    ["partition-table.bin", 0x8000],
+    ["ota_data_initial.bin", 0xe000],
+    ["vfo-knob-companion-1.21.1.bin", 0x20000],
+  ]);
+});
+
+test("rejects companion releases with unsafe layout or wrong version", () => {
+  const [companion, bench] = companionManifests();
+  assert.throws(() => createCompanionFlashPlan(companion, { ...bench, release: "1.21.0" }), /different releases/);
+  assert.throws(() => createCompanionFlashPlan(companion, { ...bench, bootloader_version: 1 }), /unsupported bootloader/);
+  assert.throws(() => createCompanionFlashPlan(companion, {
+    ...bench,
+    files: { ...bench.files, "bootloader.bin": { ...bench.files["bootloader.bin"], offset: "0x0" } },
+  }), /unexpected flash offset/);
+  assert.throws(() => createCompanionFlashPlan({ ...companion, size: 8193 }, bench), /invalid signed-image size/);
+});
+
+test("releases a serial writer when a write rejects", async () => {
+  let locked = false;
+  const device = {
+    get writable() {
+      return {
+        get locked() { return locked; },
+        getWriter() {
+          if (locked) throw new TypeError("stream already locked");
+          locked = true;
+          return {
+            async write() { throw new Error("serial write failed"); },
+            releaseLock() { locked = false; },
+          };
+        },
+      };
+    },
+  };
+  const transport = new SafeTransport(device);
+  await assert.rejects(transport.write(new Uint8Array([1])), /serial write failed/);
+  assert.equal(locked, false);
+  await assert.rejects(transport.write(new Uint8Array([2])), /serial write failed/);
+  assert.equal(locked, false);
+});
+
+test("reports when another writer already holds the serial stream", async () => {
+  const transport = new SafeTransport({ writable: { locked: true } });
+  await assert.rejects(transport.write(new Uint8Array([1])), /already locked before esptool could write/);
+});
+
+test("inspects companion identity with sequential serial reads", async () => {
+  let activeReads = 0;
+  let maximumConcurrentReads = 0;
+  const read = async (result) => {
+    activeReads++;
+    maximumConcurrentReads = Math.max(maximumConcurrentReads, activeReads);
+    await Promise.resolve();
+    activeReads--;
+    return result;
+  };
+  const chip = {
+    getChipDescription: () => read("ESP32-U4WDH (revision 3)"),
+    getChipRevision: () => read(3),
+  };
+  const identity = await inspectCompanionChip(chip, {});
+  assert.deepEqual(identity, { description: "ESP32-U4WDH (revision 3)", revision: 3 });
+  assert.equal(maximumConcurrentReads, 1);
 });
 
 test("plans an application BIN for the first OTA slot without a full erase", () => {

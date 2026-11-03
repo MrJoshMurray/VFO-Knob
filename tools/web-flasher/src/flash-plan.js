@@ -91,13 +91,13 @@ export function createCustomFlashPlan(name, data, kind) {
   throw new Error("Choose an application BIN or a merged full-flash BIN.");
 }
 
-async function fetchJson(url, fetchImpl) {
+export async function fetchJson(url, fetchImpl) {
   const response = await fetchImpl(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`Could not fetch release metadata (${response.status}).`);
   return response.json();
 }
 
-async function fetchVerifiedFile(file, fetchImpl, cryptoImpl) {
+export async function fetchVerifiedFile(file, fetchImpl, cryptoImpl) {
   const response = await fetchImpl(file.url, { cache: "no-store" });
   if (!response.ok) throw new Error(`Could not download ${file.name} (${response.status}).`);
 

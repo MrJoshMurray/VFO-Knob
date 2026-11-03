@@ -1,5 +1,7 @@
-import { ESPLoader, Transport } from "esptool-js";
+import { ESPLoader } from "esptool-js";
 import { createCustomFlashPlan, loadVerifiedFlashPlan } from "./flash-plan.js";
+import { inspectCompanionChip, loadVerifiedCompanionFlashPlan } from "./companion-plan.js";
+import { SafeTransport } from "./safe-transport.js";
 import "./style.css";
 
 const button = document.querySelector("#flash-button");
@@ -11,6 +13,13 @@ const customImageKind = document.querySelector("#custom-image-kind");
 const customBinFile = document.querySelector("#custom-bin-file");
 const customBinName = document.querySelector("#custom-bin-name");
 const customImageHint = document.querySelector("#custom-image-hint");
+const companionButton = document.querySelector("#companion-flash-button");
+const companionConsent = document.querySelector("#companion-consent");
+const companionRelease = document.querySelector("#companion-release");
+const companionStatus = document.querySelector("#companion-status");
+const companionProgressFill = document.querySelector("#companion-progress-fill");
+const companionProgressLabel = document.querySelector("#companion-progress-label");
+const companionLog = document.querySelector("#companion-log");
 const status = document.querySelector("#status");
 const releaseVersion = document.querySelector("#release-version");
 const progressFill = document.querySelector("#progress-fill");
@@ -18,27 +27,28 @@ const progressLabel = document.querySelector("#progress-label");
 const log = document.querySelector("#log");
 let busy = false;
 
-function setStatus(message, kind = "") {
-  status.textContent = message;
-  status.dataset.kind = kind;
+function setStatus(message, kind = "", target = status) {
+  target.textContent = message;
+  target.dataset.kind = kind;
 }
 
-function appendLog(message) {
-  const lines = [...log.textContent.split("\n"), String(message)];
-  log.textContent = lines.slice(-240).join("\n");
-  log.scrollTop = log.scrollHeight;
+function appendLog(message, target = log) {
+  const lines = [...target.textContent.split("\n"), String(message)];
+  target.textContent = lines.slice(-240).join("\n");
+  target.scrollTop = target.scrollHeight;
 }
 
-function setProgress(percent) {
+function setProgress(percent, fill = progressFill, label = progressLabel) {
   const bounded = Math.max(0, Math.min(100, percent));
-  progressFill.style.width = `${bounded}%`;
-  progressLabel.textContent = `${Math.round(bounded)}%`;
+  fill.style.width = `${bounded}%`;
+  label.textContent = `${Math.round(bounded)}%`;
 }
 
 function updateButton() {
   const serialAvailable = "serial" in navigator;
   button.disabled = busy || !consent.checked || !("serial" in navigator);
   customButton.disabled = busy || !customConsent.checked || !customBinFile.files?.length || !serialAvailable;
+  companionButton.disabled = busy || !companionConsent.checked || !serialAvailable;
 }
 
 function updateCustomImageDetails() {
@@ -79,7 +89,7 @@ async function flashPlan(plan, confirmation, successMessage) {
     appendLog("Requesting access to Espressif USB JTAG/serial (303A:1001)…");
     port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x303a, usbProductId: 0x1001 }] });
 
-    transport = new Transport(port);
+    transport = new SafeTransport(port);
     loader = new ESPLoader({
       transport,
       baudrate: 460800,
@@ -205,6 +215,126 @@ customButton.addEventListener("click", async () => {
     setStatus(message, "error");
     appendLog(`ERROR: ${message}`);
   } finally {
+    busy = false;
+    updateButton();
+  }
+});
+
+companionConsent.addEventListener("change", () => {
+  updateButton();
+  setStatus(
+    companionConsent.checked
+      ? "Ready. Connect the second chip in CH340 orientation, then start the installer."
+      : "Check the box above to enable the installer.",
+    "",
+    companionStatus,
+  );
+});
+
+companionButton.addEventListener("click", async () => {
+  if (busy) return;
+  busy = true;
+  updateButton();
+  setProgress(0, companionProgressFill, companionProgressLabel);
+  companionRelease.textContent = "Checking release…";
+  companionLog.textContent = "Ready.";
+
+  let transport;
+  let loader;
+  let chipDetected = false;
+  let resetDone = false;
+  let phase = "selecting the serial port";
+
+  try {
+    if (!window.isSecureContext) throw new Error("Open this page over HTTPS or localhost to use USB serial.");
+    if (!window.crypto?.subtle) throw new Error("Secure Web Crypto is unavailable; open this page over HTTPS or localhost.");
+
+    phase = "selecting the serial port";
+    setStatus("Choose the knob's CH340 serial port with the USB-C plug flipped to the second chip.", "", companionStatus);
+    appendLog("Requesting access to a serial port; the detected chip must match the knob's companion.", companionLog);
+    const port = await navigator.serial.requestPort();
+
+    phase = "loading the release";
+    setStatus("Downloading and verifying the official companion files.", "", companionStatus);
+    appendLog("Fetching companion firmware and provisioning manifests…", companionLog);
+    const plan = await loadVerifiedCompanionFlashPlan();
+    companionRelease.textContent = plan.version;
+    for (const file of plan.files) appendLog(`Verified ${file.name} · ${file.size.toLocaleString()} bytes · SHA-256 OK`, companionLog);
+
+    transport = new SafeTransport(port);
+    loader = new ESPLoader({
+      transport,
+      baudrate: 460800,
+      debugLogging: false,
+      terminal: { clean() {}, writeLine: (line) => appendLog(line, companionLog), write: (line) => appendLog(line, companionLog) },
+    });
+
+    phase = "connecting to the second ESP32";
+    setStatus("Connecting to the second ESP32 and checking its package and revision.", "", companionStatus);
+    const chipName = await loader.main();
+    chipDetected = true;
+    const chip = loader.chip;
+    if (chip.CHIP_NAME !== "ESP32" || typeof chip.getChipDescription !== "function" || typeof chip.getChipRevision !== "function") {
+      throw new Error(`Expected the knob's ESP32 companion, found ${chipName}. Check the USB-C plug orientation.`);
+    }
+    const { description, revision } = await inspectCompanionChip(chip, loader);
+    appendLog(`Detected ${description}, revision ${revision}.`, companionLog);
+    phase = "checking the companion chip";
+    if (!description.includes("ESP32-U4WDH")) throw new Error(`Expected ESP32-U4WDH, found ${description}. Nothing was written.`);
+    if (revision < 3) throw new Error(`ESP32 revision ${revision} is too old for signed updates. Nothing was written.`);
+
+    const accepted = window.confirm(
+      `Install Bluetooth companion firmware ${plan.version}?\n\nThis writes the second ESP32's bootloader, partition table, OTA data, and firmware. It does not erase the chip's NVS settings or change the ESP32-S3. Continue only if the detected chip is the knob's second chip.`,
+    );
+    if (!accepted) {
+      setStatus("Install cancelled. No write was started.", "", companionStatus);
+      appendLog("Cancelled before writing.", companionLog);
+      return;
+    }
+
+    setStatus("Writing the companion firmware. Keep the cable connected.", "", companionStatus);
+    phase = "writing the companion flash";
+    appendLog("Beginning second-chip provisioning; existing NVS is preserved…", companionLog);
+    const totalBytes = plan.files.reduce((sum, file) => sum + file.data.length, 0);
+    const priorBytes = (fileIndex) => plan.files.slice(0, fileIndex).reduce((sum, file) => sum + file.data.length, 0);
+    await loader.writeFlash({
+      fileArray: plan.files.map(({ data, address }) => ({ data, address })),
+      flashMode: plan.flashMode,
+      flashFreq: plan.flashFreq,
+      flashSize: plan.flashSize,
+      eraseAll: false,
+      compress: true,
+      reportProgress: (fileIndex, written, fileTotal) => {
+        const currentBytes = fileTotal > 0 ? (written / fileTotal) * plan.files[fileIndex].data.length : 0;
+        setProgress(((priorBytes(fileIndex) + currentBytes) / totalBytes) * 100, companionProgressFill, companionProgressLabel);
+      },
+    });
+
+    appendLog("Companion flash write completed.", companionLog);
+    phase = "restarting the companion chip";
+    await loader.after("hard_reset");
+    resetDone = true;
+    setProgress(100, companionProgressFill, companionProgressLabel);
+    setStatus("Bluetooth firmware installed. Reboot the knob to start the companion.", "success", companionStatus);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setStatus(`Failed while ${phase}: ${message}`, "error", companionStatus);
+    appendLog(error instanceof Error && error.stack ? error.stack : `ERROR: ${message}`, companionLog);
+  } finally {
+    if (loader && chipDetected && !resetDone) {
+      try {
+        await loader.after("hard_reset");
+      } catch {
+        // Keep the original flash result visible if resetting fails.
+      }
+    }
+    if (transport) {
+      try {
+        await transport.disconnect();
+      } catch {
+        // The port may already have closed after a failed connection.
+      }
+    }
     busy = false;
     updateButton();
   }

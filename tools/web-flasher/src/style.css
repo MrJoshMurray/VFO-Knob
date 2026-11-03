@@ -115,6 +115,8 @@ code { color: #275b4b; background: #e5ede8; padding: 2px 4px; font: 11px var(--m
 .custom-local-note { padding-top: 7px; border-top: 1px solid #e2e2da; }
 .custom-action { align-self: start; padding: 1px 0 0 22px; border-left: 1px solid var(--line); }
 .custom-action .consent { align-items: flex-start; line-height: 1.6; }
+.companion-note { margin: 0; padding: 14px 16px; border-left: 3px solid var(--green); background: #e8eee8; color: #435248; font-size: 12px; line-height: 1.7; }
+.companion-note strong { color: #245c49; }
 
 .footer { min-height: 56px; display: flex; justify-content: space-between; align-items: center; gap: 20px; border-top: 1px solid var(--line); color: var(--muted); }
 .footer a { color: var(--ink); text-decoration-thickness: 1px; text-underline-offset: 3px; }

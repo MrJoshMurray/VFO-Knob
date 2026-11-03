@@ -47,11 +47,24 @@ organization Pages site hosted from another repository.
 5. After the knob restarts, join its `VFOKnob` Wi-Fi network from a phone,
    configure Wi-Fi, and choose the desired radio firmware on the knob.
 
-The flash is destructive to the S3's entire flash, including saved settings.
-The second ESP32 chip is not changed. Its optional companion firmware and
-microSD preloading are not part of this browser workflow. Use
-`tools/install-setup.sh` for the full provisioning workflow; that script
-currently requires Linux and ESP-IDF 5.5.x.
+The setup flash is destructive to the S3's entire flash, including saved
+settings. It does not change the second ESP32 chip.
+
+## Install Bluetooth firmware
+
+The **Install Bluetooth firmware** section provisions the second ESP32 over
+its CH340 USB serial port. Flip the USB-C plug to reach that chip, acknowledge
+the write, and choose its port in Chrome's picker. The page checks the chip is
+an ESP32-U4WDH at revision 3 or later before writing. It fetches the published
+companion image and bench files from the public `firmware` branch, verifies
+each file against its SHA-256 manifest, then writes the bootloader, partition
+table, OTA data and app at their published offsets. It does not erase the
+whole chip or touch NVS, so saved Bluetooth pairings are preserved; the S3 is
+untouched. Windows may need the CH340 driver.
+
+This browser flow installs the latest official companion release. Developers
+can still use `tools/install-setup.sh --second-chip` or the companion's
+development update API; those workflows require ESP-IDF 5.5.x.
 
 ## Custom BIN testing
 
